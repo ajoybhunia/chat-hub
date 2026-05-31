@@ -1,19 +1,23 @@
-// ...existing code...
+import type { JWTPayload } from "npm:jose";
 import { verifyJwt } from "../utils/jwt.ts";
 
-export async function authMiddleware(ctx: any, next: () => Promise<void>) {
-  const authHeader = ctx.request.headers.get("Authorization");
+const json401 = (message: string) =>
+  new Response(JSON.stringify({ error: message }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+
+export async function requireAuth(
+  request: Request,
+): Promise<JWTPayload | Response> {
+  const authHeader = request.headers.get("Authorization");
   if (!authHeader) {
-    ctx.response.status = 401;
-    ctx.response.body = { error: "Missing Authorization header" };
-    return;
+    return json401("Missing Authorization header");
   }
   const token = authHeader.replace("Bearer ", "");
   try {
-    ctx.state.user = await verifyJwt(token);
-    await next();
+    return await verifyJwt(token);
   } catch {
-    ctx.response.status = 401;
-    ctx.response.body = { error: "Invalid or expired token" };
+    return json401("Invalid or expired token");
   }
 }
