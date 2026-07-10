@@ -33,20 +33,39 @@ const handleRequest = async (
     return withCors(await handleAuthRoutes(request));
   }
 
-  if (request.headers.get("upgrade") === "websocket") {
+  const isWebSocket =
+    request.headers.get("upgrade")?.toLowerCase() === "websocket";
+  if (isWebSocket) {
     // Browser WebSocket API cannot set headers; token must be in ?token= query param
     const wsToken = url.searchParams.get("token");
+    console.log(
+      "WebSocket upgrade request",
+      url.href,
+      "token present:",
+      Boolean(wsToken),
+    );
+
     if (!wsToken) {
+      console.warn("WebSocket rejected: missing token");
       return withCors(
-        new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({ error: "Missing Authorization header" }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
       );
     }
+
     try {
       await verifyJwt(wsToken);
-    } catch {
+      console.log("WebSocket token validated");
+    } catch (error) {
+      console.warn(
+        "WebSocket rejected: invalid token",
+        error?.message ?? error,
+      );
       return withCors(
         new Response(JSON.stringify({ error: "Invalid or expired token" }), {
           status: 401,
@@ -54,6 +73,7 @@ const handleRequest = async (
         }),
       );
     }
+
     const { socket, response } = Deno.upgradeWebSocket(request);
     clients.add(socket);
     socket.onopen = (ev: Event) => handleOnopen(ev, clients);
