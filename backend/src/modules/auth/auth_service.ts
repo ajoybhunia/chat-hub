@@ -1,19 +1,26 @@
 // ...existing code...
-import { AuthRepository } from "./auth_repository.ts";
+import { AuthRepository, DbUser } from "./auth_repository.ts";
 import { createJwt } from "../../utils/jwt.ts";
-import bcrypt from "npm:bcryptjs";
+import bcrypt from "bcryptjs";
 
 export class AuthService {
   private repo = new AuthRepository();
 
-  async signup(username: string, email: string, password: string) {
+  async signup(
+    username: string,
+    email: string,
+    password: string,
+  ): Promise<{ user: DbUser; token: string }> {
     const existing = await this.repo.findByEmail(email);
     if (existing) throw new Error("Email already in use");
+
     const existingUser = await this.repo.findByUsername(username);
     if (existingUser) throw new Error("Username already in use");
+
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await this.repo.createUser(username, email, passwordHash);
     const token = await createJwt({ id: user.id, email: user.email });
+
     return { user, token };
   }
 

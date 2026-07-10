@@ -1,5 +1,5 @@
 // ...existing code...
-import { connect, type Redis } from "jsr:@db/redis";
+import { connect, type Redis } from "@db/redis";
 import { config } from "../config/env.ts";
 
 let _redis: Redis | null = null;

@@ -1,4 +1,4 @@
-import type { JWTPayload } from "npm:jose";
+import type { JWTPayload } from "jose";
 import { verifyJwt } from "../utils/jwt.ts";
 
 const json401 = (message: string) =>

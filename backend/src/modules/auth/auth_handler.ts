@@ -13,9 +13,16 @@ export async function handleAuthRoutes(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
   if (url.pathname.endsWith("/signup") && request.method === "POST") {
+    console.log(`${request.method} ${url.pathname}`);
+
     try {
       const { username, email, password } = await request.json();
-      const { user, token } = await authService.signup(username, email, password);
+      const { user, token } = await authService.signup(
+        username,
+        email,
+        password,
+      );
+
       return json({ user, token }, 201);
     } catch (e: any) {
       return json({ error: e.message }, 400);

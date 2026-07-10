@@ -3,5 +3,11 @@
     "dev": "deno run -A --watch --env main.ts",
     "check": "deno check main.ts",
     "fmt": "deno fmt"
+  },
+  "imports": {
+    "@db/postgres": "jsr:@db/postgres@^0.19.5",
+    "@db/redis": "jsr:@db/redis@^0.41.2",
+    "bcryptjs": "npm:bcryptjs@^3.0.3",
+    "jose": "npm:jose@^6.2.3"
   }
 }

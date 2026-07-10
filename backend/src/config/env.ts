@@ -1,5 +1,5 @@
 // ...existing code...
-function require(key: string): string {
+const require = (key: string): string => {
   const value = Deno.env.get(key);
   if (!value) throw new Error(`Missing required env var: ${key}. Copy .env.example to .env and fill in values.`);
   return value;

@@ -1,5 +1,5 @@
 // ...existing code...
-import { jwtVerify, SignJWT } from "npm:jose";
+import { jwtVerify, SignJWT } from "jose";
 import { config } from "../config/env.ts";
 
 const secret = () => new TextEncoder().encode(config.jwtSecret);

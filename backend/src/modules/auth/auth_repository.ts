@@ -1,7 +1,7 @@
 // ...existing code...
 import { db } from "../../database/postgres.ts";
 
-interface DbUser {
+export interface DbUser {
   id: number;
   username: string;
   email: string;
@@ -34,6 +34,7 @@ export class AuthRepository {
       "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
       [username, email, passwordHash],
     );
+
     return result.rows[0];
   }
 }
