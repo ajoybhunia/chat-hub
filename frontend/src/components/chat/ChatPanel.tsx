@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Box, Button, Divider, Paper, TextField, Typography } from "@mui/material";
 import { useChatStore } from "../../store/chat.store";
 import { useSocket } from "../../hooks/useSocket";
+import labels from "../../constants/labels";
 
 export default function ChatPanel() {
   const [input, setInput] = useState("");
@@ -31,7 +32,7 @@ export default function ChatPanel() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", flex: 1, height: "100vh", overflow: "hidden" }}>
       <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Typography variant="h6" sx={{ fontWeight: "medium" }}># general</Typography>
+        <Typography variant="h6" sx={{ fontWeight: "medium" }}>{labels.chat.channel}</Typography>
       </Box>
 
       <Box
@@ -46,7 +47,7 @@ export default function ChatPanel() {
       >
         {messages.length === 0 ? (
           <Typography color="text.secondary" sx={{ m: "auto", textAlign: "center" }}>
-            No messages yet — say something!
+            {labels.chat.emptyState}
           </Typography>
         ) : (
           messages.map((msg, i) => (
@@ -71,7 +72,7 @@ export default function ChatPanel() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Message #general"
+          placeholder={labels.chat.inputPlaceholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -84,7 +85,7 @@ export default function ChatPanel() {
           disabled={!input.trim()}
           sx={{ minWidth: 80 }}
         >
-          Send
+          {labels.chat.send}
         </Button>
       </Box>
     </Box>

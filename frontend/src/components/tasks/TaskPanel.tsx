@@ -1,4 +1,6 @@
 // ...existing code...
+import labels from "../../constants/labels";
+
 export default function TaskPanel() {
-  return <section>Task Panel</section>;
+  return <section>{labels.tasks.title}</section>;
 }

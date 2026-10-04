@@ -1,6 +1,7 @@
 // ...existing code...
 import { Box, Button, Divider, Typography } from "@mui/material";
 import { useAuthStore } from "../../store/auth.store";
+import labels from "../../constants/labels";
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
@@ -20,12 +21,12 @@ export default function Sidebar() {
       }}
     >
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
-        Chat Hub
+        {labels.sidebar.title}
       </Typography>
       <Divider sx={{ borderColor: "grey.700" }} />
 
       <Typography variant="caption" color="grey.500" sx={{ mt: 1, textTransform: "uppercase", letterSpacing: 1 }}>
-        Channels
+        {labels.sidebar.channels}
       </Typography>
       <Box
         sx={{
@@ -36,7 +37,7 @@ export default function Sidebar() {
           cursor: "default",
         }}
       >
-        <Typography variant="body2"># general</Typography>
+        <Typography variant="body2">{labels.chat.channel}</Typography>
       </Box>
 
       <Box sx={{ flex: 1 }} />
@@ -57,7 +58,7 @@ export default function Sidebar() {
           onClick={logout}
           sx={{ mt: 1 }}
         >
-          Sign out
+          {labels.sidebar.signOut}
         </Button>
       </Box>
     </Box>

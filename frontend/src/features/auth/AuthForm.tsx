@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box, Button, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useAuthStore } from "../../store/auth.store";
+import labels from "../../constants/labels";
 
 export default function AuthForm() {
   const [tab, setTab] = useState(0);
@@ -22,8 +23,8 @@ export default function AuthForm() {
         await signup(form.username, form.email, form.password);
       }
     } catch (err: any) {
-      const raw = err?.response?.data?.error ?? err?.message ?? "Auth failed";
-      setError(raw === "Invalid credentials" ? "Invalid email or password" : raw);
+      const raw = err?.response?.data?.error ?? err?.message ?? labels.auth.fallbackError;
+      setError(raw === "Invalid credentials" ? labels.auth.invalidCredentials : raw);
     }
   };
 
@@ -33,15 +34,15 @@ export default function AuthForm() {
         value={tab}
         onChange={(_, v) => setTab(v)}
       >
-        <Tab label="Login" />
-        <Tab label="Sign Up" />
+        <Tab label={labels.auth.login} />
+        <Tab label={labels.auth.signUp} />
       </Tabs>
       <form onSubmit={handleSubmit}>
         {tab === 1 && (
           <TextField
             margin="normal"
             fullWidth
-            label="Username"
+            label={labels.auth.username}
             name="username"
             value={form.username}
             onChange={handleChange}
@@ -51,7 +52,7 @@ export default function AuthForm() {
         <TextField
           margin="normal"
           fullWidth
-          label="Email"
+          label={labels.auth.email}
           name="email"
           type="email"
           value={form.email}
@@ -61,7 +62,7 @@ export default function AuthForm() {
         <TextField
           margin="normal"
           fullWidth
-          label="Password"
+          label={labels.auth.password}
           name="password"
           type="password"
           value={form.password}
@@ -74,7 +75,7 @@ export default function AuthForm() {
           </Typography>
         )}
         <Button type="submit" fullWidth variant="contained" sx={{ mt: 2 }}>
-          {tab === 0 ? "Login" : "Sign Up"}
+          {tab === 0 ? labels.auth.login : labels.auth.signUp}
         </Button>
       </form>
     </Box>
