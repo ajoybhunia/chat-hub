@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { Box, Button, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useAuthStore } from "../../store/auth.store";
 import labels from "../../constants/labels";
+import { ACTION_TYPE, log } from "../../lib/logger";
 
 export default function AuthForm() {
   const [tab, setTab] = useState(0);
@@ -22,9 +24,16 @@ export default function AuthForm() {
       } else {
         await signup(form.username, form.email, form.password);
       }
-    } catch (err: any) {
-      const raw = err?.response?.data?.error ?? err?.message ?? labels.auth.fallbackError;
+    } catch (err) {
+      const raw =
+        (axios.isAxiosError(err) ? err.response?.data?.error ?? err.message : undefined) ??
+        (err instanceof Error ? err.message : undefined) ??
+        labels.auth.fallbackError;
       setError(raw === "Invalid credentials" ? labels.auth.invalidCredentials : raw);
+      log.debug(
+        { action_type: tab === 0 ? ACTION_TYPE.LOGIN : ACTION_TYPE.SIGNUP, err },
+        "Auth error displayed to user",
+      );
     }
   };
 

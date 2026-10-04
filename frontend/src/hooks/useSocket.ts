@@ -2,10 +2,10 @@
 import { useEffect, useRef } from "react";
 import { useChatStore } from "../store/chat.store";
 import { useAuthStore } from "../store/auth.store";
+import { buildSocketUrl } from "../services/socket";
+import { ACTION_TYPE, log } from "../lib/logger";
+import { SOCKET_PATH } from "../constants/paths";
 import type { Message } from "../types/chat";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const WS_BASE_URL = API_URL.replace(/^http/, "ws");
 
 export function useSocket() {
   const socketRef = useRef<WebSocket | null>(null);
@@ -16,41 +16,63 @@ export function useSocket() {
   useEffect(() => {
     if (!token) {
       if (socketRef.current) {
-        console.log("WebSocket closing because auth token is missing");
+        log.info(
+          { action_type: ACTION_TYPE.WS_DISCONNECT, path: SOCKET_PATH },
+          "WebSocket closing because auth token is missing",
+        );
         socketRef.current.close();
       }
       socketRef.current = null;
       return;
     }
 
-    const url = `${WS_BASE_URL}/?token=${encodeURIComponent(token)}`;
-    console.log("Connecting WebSocket to", url);
-    const ws = new WebSocket(url);
+    log.debug(
+      { action_type: ACTION_TYPE.WS_CONNECT, path: SOCKET_PATH },
+      "Connecting WebSocket",
+    );
+    const ws = new WebSocket(buildSocketUrl(token));
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
+      log.info(
+        { action_type: ACTION_TYPE.WS_CONNECT, path: SOCKET_PATH },
+        "WebSocket connected",
+      );
     };
 
     ws.onmessage = (ev) => {
       try {
         const message: Message = JSON.parse(ev.data);
         addMessage(message);
+        log.debug(
+          { action_type: ACTION_TYPE.WS_MESSAGE_RECEIVED, user: message.user },
+          "Message received",
+        );
       } catch {
         // ignore malformed frames
+        log.debug(
+          { action_type: ACTION_TYPE.WS_MESSAGE_RECEIVED, detail: "malformed frame" },
+          "Ignored malformed WebSocket frame",
+        );
       }
     };
 
-    ws.onerror = (event) => {
-      console.error("WebSocket error:", event);
+    ws.onerror = () => {
+      log.error(
+        { action_type: ACTION_TYPE.WS_CONNECT, path: SOCKET_PATH, detail: "client error event" },
+        "WebSocket error",
+      );
     };
 
     ws.onclose = (event) => {
-      console.warn(
-        "WebSocket closed:",
-        event.code,
-        event.reason,
-        event.wasClean,
+      log.warn(
+        {
+          action_type: ACTION_TYPE.WS_DISCONNECT,
+          code: event.code,
+          reason: event.reason,
+          was_clean: event.wasClean,
+        },
+        "WebSocket closed",
       );
       if (socketRef.current === ws) {
         socketRef.current = null;
@@ -73,6 +95,7 @@ export function useSocket() {
   const sendMessage = (content: string) => {
     if (socketRef.current?.readyState === WebSocket.OPEN && user) {
       socketRef.current.send(JSON.stringify({ user: user.username, content }));
+      log.debug({ action_type: ACTION_TYPE.WS_MESSAGE_SENT }, "Message sent");
     }
   };
 
