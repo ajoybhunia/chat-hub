@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Chat Hub is a real-time chat application built as a **modular monolith**. It uses native WebSockets (not Socket.IO) intentionally — the project is structured to learn WebSocket fundamentals before adding production abstractions.
+Chat Hub is a real-time chat application built as a **modular monolith**. It uses native WebSockets (not Socket.IO) intentionally — the project is structured to learn WebSocket fundamentals before adding production abstractions. The backend is **Java/Spring Boot** (`backend/`); the former Deno backend was removed after a verified full-parity port (see `backend/PARITY_REPORT.md`).
 
 ## Architecture
 
@@ -12,27 +12,27 @@ Chat Hub is a real-time chat application built as a **modular monolith**. It use
 Frontend (React + Vite)         port 5173
    ↓  HTTP (axios)
    ↓  WebSocket (native)
-Backend (Deno)                  port 8000
+Backend (Spring Boot, Java)     port 8000
    ↓
-PostgreSQL                      port 5432
-Redis                           port 6379
+PostgreSQL                      port 5433 (host; 5432 in-container)
 ```
 
 ### Backend structure (`backend/`)
 
-Entry point: `main.ts` creates a `Set<WebSocket>` (the global clients registry) and passes it to `Deno.serve`. Every request goes through `src/request_handler.ts`:
-- `/auth/*` → `src/modules/auth/` (handler → service → repository pattern)
-- `Upgrade: websocket` → `src/socket_handler.ts` (onopen/onmessage/onclose handlers)
-- Everything else → 404
+Entry point: `ChatHubApplication.java`. All HTTP goes through Spring MVC — there is no hand-rolled request router:
+
+- `config/WebConfig.java` — CORS filter (highest precedence, applied to every response)
+- `common/security/JwtAuthFilter.java` — `401` guard on every non-`/auth` request (`Authorization: Bearer`)
+- `modules/auth/controller/AuthController.java` — `POST /auth/signup` (201), `POST /auth/login` (200)
+- `websocket/WebSocketAuthFilter.java` — validates `?token=` **before** the WS upgrade (401 pre-upgrade)
+- Anything unmatched → `404 {"error":"Not found"}` via `common/error/GlobalExceptionHandler.java`
 
 Layers:
-- `src/modules/` — feature modules (auth, chats, rooms, tasks, notifications, users); auth is the only fully implemented one
-- `src/websocket/` — placeholders for room_manager, presence_manager, socket_manager, events (not yet implemented)
-- `src/middleware/` — JWT auth middleware (defined but not yet wired into routing), rate limit middleware (Redis-backed, placeholder)
-- `src/database/postgres.ts` — single `db` client instance
-- `src/redis/redis_client.ts` — single `redis` connection instance
-- `src/utils/` — jwt (djwt), logger, validators
-- `src/config/env.ts` — reads `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` from environment
+- `src/main/java/com/chathub/modules/` — feature modules (`controller → service → repository + dto`); auth is the only implemented one — chats/rooms/tasks/notifications/users are future modules
+- `websocket/` — `ChatWebSocketHandler` (broadcast to all clients), `SocketRegistry`/`InMemorySocketRegistry`, `AuthenticatedUserHandshakeInterceptor`
+- `common/` — `error/` (ApiError + GlobalExceptionHandler + business exceptions), `security/` (JwtService, JwtAuthFilter, AuthenticatedUser), `logging/` (JsonLineEncoder, RequestLoggingFilter, LogDetails)
+- `config/` — WebConfig (CORS), WebSocketConfig (endpoint `/` + origin allow-list), AppConfig (BCrypt), AppProperties, DatabaseUrls + DatabaseUrlEnvironmentPostProcessor (`.env` self-load, fail-fast)
+- `src/main/resources/` — `application.yml`, `logback-spring.xml` (JSON logs), Flyway `db/migration/V1__create_users.sql`
 
 ### Frontend structure (`frontend/`)
 
@@ -40,24 +40,24 @@ Layers:
 - `src/features/` — feature slices; `auth/AuthForm.tsx` is fully implemented using MUI
 - `src/components/` — UI components (ChatPanel, TaskPanel, Sidebar, LoadingSkeleton)
 - `src/services/` — api.ts and socket.ts are placeholders; storage.ts exists but is unreferenced
-- `src/hooks/` — useAuth.ts and useSocket.ts are placeholders
+- `src/hooks/` — useAuth.ts is a placeholder; useSocket.ts is implemented (native WS, connects with `?token=`)
 - `src/App.tsx` — renders `<AuthForm>` when unauthenticated, placeholder chat UI when authenticated
 - API base URL: `VITE_API_URL` env var (defaults to `http://localhost:8000`)
 - JWT token persisted in `localStorage`, but the auth store does **not** rehydrate from localStorage on page refresh — `user` initializes to `null` even when a token exists
 
 ## Commands
 
-### Backend (Deno)
+### Backend (Java)
 
 ```bash
 cd backend
-cp .env.example .env          # required — Deno won't start without DATABASE_URL and JWT_SECRET
-deno task dev                 # run with --watch (loads .env automatically via --env flag)
-deno task check               # type-check without running
-deno task fmt                 # format
+cp .env.example .env          # required — DATABASE_URL + JWT_SECRET (fail-fast at startup)
+./gradlew bootRun             # run on port 8000 (.env loaded automatically, every launch path)
+./gradlew build               # compile + run all tests (Testcontainers needs Docker)
+./gradlew test                # tests only
 ```
 
-Deno 2 — all dependencies use inline `jsr:` and `npm:` specifiers directly in source files. No import map is active. The `--env` flag in the dev task loads `.env` from the `backend/` directory automatically.
+Gradle 9.7.1 wrapper, Java 21 toolchain (auto-downloaded via foojay on first run). No fmt/check tasks — `./gradlew build` is the gate.
 
 ### Frontend (npm)
 
@@ -73,33 +73,27 @@ npm run lint                  # eslint
 ### Infrastructure
 
 ```bash
-docker compose up postgres redis    # start only DB + Redis locally
-docker compose up                   # full stack including backend + frontend containers
+docker compose up postgres    # start only the DB locally (host port 5433)
 ```
+
+The backend and frontend run natively (commands above) — compose provides PostgreSQL only; Redis was removed (never used by the Java backend).
 
 ### Database setup
 
-There are no migration files. The database schema must be created manually. The `users` table (required by the auth module) is:
-
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL
-);
-```
+Schema is managed by Flyway (`backend/src/main/resources/db/migration/`). `V1__create_users.sql` creates the `users` table (+ email/username indexes), ported from the Deno backend. No manual steps: on an existing DB without Flyway history, `baseline-on-migrate: true` baselines instead of re-running V1.
 
 ## Key implementation notes
 
-**No test infrastructure.** There are no test files or test runner configuration in either the backend or frontend.
+**Backend tests exist:** 56 tests (unit + Mockito, MockMvc + Testcontainers PostgreSQL 15, live WebSocket integration). Run them with `./gradlew build` — Docker must be running for Testcontainers. The frontend has no test runner; its gate is `npm run build` + `npm run lint`.
 
-**Adding new HTTP routes** requires extending `request_handler.ts`. Each route module exports an `async function handleXxxRoutes(request: Request): Promise<Response>`. CORS headers are applied centrally by `withCors()` in `request_handler.ts`; new route branches should wrap their handler result with `withCors()`.
+**Adding new HTTP routes:** create a `@RestController` under `modules/<feature>/controller/` — no central router to edit. CORS is applied centrally by the `WebConfig` CorsFilter; error bodies (`{"error": message}`) come from `GlobalExceptionHandler` — throw the existing business exceptions (`DuplicateResourceException`, `InvalidCredentialsException`) or add an `@ExceptionHandler` there.
 
-**WebSocket broadcasting** broadcasts to all connected clients via the `Set<WebSocket>` passed from `main.ts`. Room-scoped broadcasting is planned in `src/websocket/room_manager.ts` but not yet implemented.
+**WebSocket broadcasting** goes to all connected clients through the `SocketRegistry` (`InMemorySocketRegistry`). The handshake is served only at `/` (`WebSocketConfig`), browser origins are checked against `app.websocket-allowed-origin-patterns` in `application.yml` (cross-site → 403; same-origin and no-Origin clients always pass), and `?token=` is verified pre-upgrade by `WebSocketAuthFilter`.
 
-**Many files contain `// ...existing code...` placeholder comments.** These are stubs for planned features, not remnants to be deleted.
+**JWT** uses jjwt (HS256, 7-day expiry) in `common/security/JwtService.java`; secrets shorter than 32 bytes are SHA-256-derived. `JWT_SECRET` should be ≥32 chars. Password hashing is BCrypt cost 10 (`config/AppConfig.java`).
 
-**JWT** uses `npm:jose` (HS256, 7-day expiry); tokens are signed/verified in `src/utils/jwt.ts` using a `TextEncoder`-encoded `JWT_SECRET`. Password hashing uses `npm:bcryptjs` (10 salt rounds).
+**Configuration** is read by `DatabaseUrlEnvironmentPostProcessor`: `backend/.env` is loaded automatically for every launch path (bootRun, IDE, `java -jar`); `DATABASE_URL` and `JWT_SECRET` fail startup fast when missing. `DATABASE_URL` accepts both `postgres://user:pass@host:5432/db` and `jdbc:postgresql://...` forms.
+
+**Logging** is JSON lines to the console (`logback-spring.xml` + `JsonLineEncoder`). Request logs redact `token=` to `***`; structured fields are attached with `LogDetails.with(...)`. Errors log a concise root-cause message with a bounded stack trace.
 
 **Auth store** (`frontend/src/store/auth.store.ts`) uses Zustand `persist` middleware — user and token survive page refresh under the `"auth-storage"` localStorage key. Any code that previously read `localStorage.getItem("token")` should read from the store instead.

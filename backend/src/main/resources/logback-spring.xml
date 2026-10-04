@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Structured JSON logging: one object per line, team-standard schema.
+     Flip com.chathub to debug (application.yml) for the full flow trace. -->
+<configuration>
+	<springProperty scope="context" name="service" source="spring.application.name" defaultValue="chat-hub" />
+
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder class="com.chathub.common.logging.JsonLineEncoder">
+			<service>${service}</service>
+		</encoder>
+	</appender>
+
+	<root level="INFO">
+		<appender-ref ref="CONSOLE" />
+	</root>
+</configuration>
