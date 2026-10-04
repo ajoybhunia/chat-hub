@@ -1,14 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import axios from "axios";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-interface User {
-  id: number;
-  username: string;
-  email: string;
-}
+import { login as loginRequest, signup as signupRequest } from "../services/auth";
+import { httpStatusOf } from "../services/api";
+import { ACTION_TYPE, log } from "../lib/logger";
+import type { User } from "../types/auth";
 
 interface AuthState {
   user: User | null;
@@ -20,22 +15,49 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       login: async (email, password) => {
-        const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-        set({ user: res.data.user, token: res.data.token });
+        try {
+          const data = await loginRequest(email, password);
+          set({ user: data.user, token: data.token });
+          log.info(
+            { action_type: ACTION_TYPE.LOGIN, status: 200, user_id: data.user.id },
+            "Login succeeded",
+          );
+        } catch (err) {
+          log.warn(
+            { action_type: ACTION_TYPE.LOGIN, status: httpStatusOf(err), err },
+            "Login failed",
+          );
+          throw err;
+        }
       },
       signup: async (username, email, password) => {
-        const res = await axios.post(`${API_URL}/auth/signup`, {
-          username,
-          email,
-          password,
-        });
-        set({ user: res.data.user, token: res.data.token });
+        try {
+          const data = await signupRequest(username, email, password);
+          set({ user: data.user, token: data.token });
+          log.info(
+            { action_type: ACTION_TYPE.SIGNUP, status: 201, user_id: data.user.id },
+            "Sign up succeeded",
+          );
+        } catch (err) {
+          log.warn(
+            { action_type: ACTION_TYPE.SIGNUP, status: httpStatusOf(err), err },
+            "Sign up failed",
+          );
+          throw err;
+        }
       },
-      logout: () => set({ user: null, token: null }),
+      logout: () => {
+        const user = get().user;
+        set({ user: null, token: null });
+        log.info(
+          { action_type: ACTION_TYPE.LOGOUT, user_id: user?.id },
+          "Logged out",
+        );
+      },
     }),
     {
       name: "auth-storage",

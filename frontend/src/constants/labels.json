@@ -1,0 +1,28 @@
+{
+  "auth": {
+    "login": "Login",
+    "signUp": "Sign Up",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "fallbackError": "Auth failed",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "chat": {
+    "channel": "# general",
+    "emptyState": "No messages yet — say something!",
+    "inputPlaceholder": "Message #general",
+    "send": "Send"
+  },
+  "sidebar": {
+    "title": "Chat Hub",
+    "channels": "Channels",
+    "signOut": "Sign out"
+  },
+  "tasks": {
+    "title": "Task Panel"
+  },
+  "common": {
+    "loading": "Loading..."
+  }
+}
