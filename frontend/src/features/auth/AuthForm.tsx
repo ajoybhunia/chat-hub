@@ -22,7 +22,8 @@ export default function AuthForm() {
         await signup(form.username, form.email, form.password);
       }
     } catch (err: any) {
-      setError(err.message || "Auth failed");
+      const raw = err?.response?.data?.error ?? err?.message ?? "Auth failed";
+      setError(raw === "Invalid credentials" ? "Invalid email or password" : raw);
     }
   };
 

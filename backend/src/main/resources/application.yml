@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: chat-hub
+  main:
+    banner-mode: "off"
+  datasource:
+    # Accepts both jdbc:postgresql://... (with optional ?user=&password=) and
+    # postgres://user:pass@host:5432/db — the latter is rewritten by
+    # DatabaseUrlEnvironmentPostProcessor. Missing value fails startup fast.
+    url: ${DATABASE_URL}
+  flyway:
+    # The shared dev database already contains the users table from the Deno
+    # backend but has no flyway history — baseline instead of re-running V1.
+    baseline-on-migrate: true
+
+server:
+  port: 8000
+
+logging:
+  level:
+    # JSON log stream (logback-spring.xml). Flip to debug for the full flow
+    # trace: "POST : /auth/login", "Authorizing : GET /rooms", service steps.
+    com.chathub: info
+
+app:
+  # Required — startup aborts when JWT_SECRET is missing (Deno env.ts parity).
+  jwt-secret: ${JWT_SECRET}
+  # Browser origins allowed on the WebSocket handshake (Spring
+  # OriginHandshakeInterceptor). Same-origin and non-browser clients (no Origin
+  # header) always pass. Patterns cover any Vite dev port — tighten for prod.
+  websocket-allowed-origin-patterns:
+    - http://localhost:*
+    - http://127.0.0.1:*
